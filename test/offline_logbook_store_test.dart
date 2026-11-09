@@ -14,7 +14,7 @@ void main() {
     tempDirectory = await Directory.systemTemp.createTemp('nexora-offline-test-');
     store = OfflineLogbookStore(
       databaseFactoryOverride: databaseFactoryFfi,
-      databasePathOverride: tempDirectory.path + '/offline.db',
+      databasePathOverride: '${tempDirectory.path}/offline.db',
     );
   });
 
