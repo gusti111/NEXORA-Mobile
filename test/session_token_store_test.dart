@@ -50,9 +50,9 @@ void main() {
     expect(preferences.containsKey('background_at'), isFalse);
   });
 
-  test('rejects an empty secure token', () {
-    expect(
-      () => SessionTokenStore.writeToken('  '),
+  test('rejects an empty secure token', () async {
+    await expectLater(
+      SessionTokenStore.writeToken('  '),
       throwsArgumentError,
     );
   });
