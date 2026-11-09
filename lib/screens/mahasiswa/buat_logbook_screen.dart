@@ -220,7 +220,7 @@ class _BuatLogbookScreenState extends State<BuatLogbookScreen> {
                 )
               else
                 DropdownButtonFormField<int>(
-                  value: _selectedPklId,
+                  initialValue: _selectedPklId,
                   isExpanded: true,
                   decoration: InputDecoration(
                     filled: true,
