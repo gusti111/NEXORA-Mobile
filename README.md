@@ -166,9 +166,9 @@ lib/
 ├── screens/
 │   ├── notification_center_screen.dart
 │   ├── admin/
-    ├── dosen/
-    ├── korlap/
-    └── mahasiswa/
+│   ├── dosen/
+│   ├── korlap/
+│   └── mahasiswa/
 
 test/
 ├── support/
