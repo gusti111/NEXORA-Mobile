@@ -194,7 +194,7 @@ class ApiService {
 
       await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
           'message': data['message'],
