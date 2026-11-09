@@ -506,6 +506,79 @@ class ApiService {
   }
 
   // ==========================================
+  // NOTIFICATIONS
+  // ==========================================
+  static Future<Map<String, dynamic>> getNotifications() async {
+    final result = await _getAuthenticated('/notifications');
+    if (result['success'] == true) {
+      final count = await getUnreadNotificationCount();
+      result['unread_count'] = count;
+    }
+    return result;
+  }
+
+  static Future<int> getUnreadNotificationCount() async {
+    final result = await _getAuthenticated('/notifications/unread-count');
+    if (result['success'] != true) return 0;
+    final value = result['data']?['unread_count'];
+    return value is int ? value : int.tryParse('$value') ?? 0;
+  }
+
+  static Future<Map<String, dynamic>> markNotificationRead(
+    String notificationId,
+  ) async {
+    return _sendAuthenticated(
+      'PATCH',
+      '/notifications/$notificationId/read',
+    );
+  }
+
+  static Future<Map<String, dynamic>> markAllNotificationsRead() async {
+    return _sendAuthenticated('PATCH', '/notifications/read-all');
+  }
+
+  static Future<Map<String, dynamic>> _sendAuthenticated(
+    String method,
+    String endpoint,
+  ) async {
+    try {
+      final token = await SessionTokenStore.readToken();
+      if (token == null || token.isEmpty) {
+        return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
+      }
+
+      final uri = Uri.parse('$baseUrl$endpoint');
+      final headers = {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+      late http.Response response;
+      switch (method) {
+        case 'PATCH':
+          response = await http.patch(uri, headers: headers);
+          break;
+        default:
+          return {'success': false, 'message': 'Metode tidak didukung.'};
+      }
+
+      await _handleAuthenticationFailure(response);
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode >= 200 && response.statusCode < 300,
+        'message': data['message'] ?? 'Permintaan selesai.',
+        'data': data['data'],
+        'statusCode': response.statusCode,
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'Tidak dapat terhubung ke server.',
+        'statusCode': null,
+      };
+    }
+  }
+
+  // ==========================================
   // MAHASISWA
   // ==========================================
   static Future<Map<String, dynamic>> getStudentPkls() async {
@@ -529,6 +602,7 @@ class ApiService {
     required String judulKegiatan,
     required String tanggalKegiatan,
     required String deskripsiKegiatan,
+    String? idempotencyKey,
     File? foto,
     double? latitude,
     double? longitude,
@@ -551,6 +625,9 @@ class ApiService {
       request.fields['judul_kegiatan'] = judulKegiatan;
       request.fields['tanggal_kegiatan'] = tanggalKegiatan;
       request.fields['deskripsi_kegiatan'] = deskripsiKegiatan;
+      if (idempotencyKey != null) {
+        request.fields['idempotency_key'] = idempotencyKey;
+      }
       if (latitude != null) request.fields['latitude'] = latitude.toString();
       if (longitude != null) request.fields['longitude'] = longitude.toString();
       if (foto != null) {
@@ -569,17 +646,23 @@ class ApiService {
           'success': true,
           'message': data['message'],
           'data': data['data'],
+          'statusCode': response.statusCode,
+          'duplicate': data['duplicate'] == true,
         };
       }
       return {
         'success': false,
         'message': data['message'] ?? 'Gagal mengirim logbook.',
         'errors': data['errors'],
+        'statusCode': response.statusCode,
+        'retryable': response.statusCode >= 500,
       };
     } catch (e) {
       return {
         'success': false,
         'message': 'Tidak dapat mengirim logbook. Periksa koneksi server.',
+        'statusCode': null,
+        'retryable': true,
       };
     }
   }
