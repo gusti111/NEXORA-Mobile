@@ -17,7 +17,8 @@ class OfflineLogbookStore {
   Future<Database> get database async {
     if (_database != null) return _database!;
 
-    final path = databasePathOverride ?? 'nexora_offline.db';
+    final path = databasePathOverride ??
+        '${await getDatabasesPath()}/nexora_offline.db';
     _database = await _databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
@@ -141,13 +142,21 @@ class OfflineLogbookStore {
       'cached_logbooks',
       where: 'user_id = ?',
       whereArgs: [userId],
-      orderBy: 'logbook_id DESC',
     );
-    return rows
+    final records = rows
         .map((row) => Map<String, dynamic>.from(
               jsonDecode(row['payload'] as String) as Map,
             ))
-        .toList(growable: false);
+        .toList();
+    records.sort((a, b) {
+      final first = DateTime.tryParse(a['tanggal_kegiatan']?.toString() ?? '');
+      final second = DateTime.tryParse(b['tanggal_kegiatan']?.toString() ?? '');
+      if (first == null && second == null) return 0;
+      if (first == null) return 1;
+      if (second == null) return -1;
+      return second.compareTo(first);
+    });
+    return records;
   }
 
   Future<void> enqueue(Map<String, Object?> record) async {
