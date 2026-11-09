@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
 import '../../main.dart';
+import '../notification_center_screen.dart';
 import 'daftar_pengguna_screen.dart';
 import 'daftar_pkl_screen.dart';
 import 'daftar_logbook_admin_screen.dart';
@@ -95,6 +96,18 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Notifikasi',
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const NotificationCenterScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             onPressed: _logout,
             icon: const Icon(Icons.logout),
