@@ -46,4 +46,24 @@ jobs:
         run: flutter test --reporter expanded
 
       - name: Build Android debug APK
-        run: flutter build apk --debug
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            echo "Android debug build attempt ${attempt}/5"
+            if flutter build apk --debug 2>&1 | tee /tmp/nexora-apk-build.log; then
+              exit 0
+            fi
+
+            if ! grep -Eq 'HTTP response code: 50[234]|HTTP response code: 429|Temporary failure in name resolution|Connection timed out' /tmp/nexora-apk-build.log; then
+              echo "Build failed for a non-transient reason; stopping without retry."
+              exit 1
+            fi
+
+            if [ "${attempt}" -lt 5 ]; then
+              echo "Gradle distribution/network error detected; retrying in 20 seconds."
+              sleep 20
+            fi
+          done
+
+          echo "Android debug build failed after five transient-network attempts."
+          exit 1
