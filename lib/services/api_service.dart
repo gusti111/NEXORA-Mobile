@@ -22,8 +22,11 @@ class ApiService {
   static Future<void> _handleUnauthorized(http.Response response) async {
     if (response.statusCode != 401 || _unauthorizedHandled) return;
     _unauthorizedHandled = true;
-    await SessionTokenStore.clearSession();
-    await onUnauthorized?.call();
+    try {
+      await SessionTokenStore.clearSession();
+    } finally {
+      await onUnauthorized?.call();
+    }
   }
 
   /// Revalidates the bearer token and refreshes the cached user profile.
@@ -94,9 +97,9 @@ class ApiService {
   }
 
   static Future<void> logout() async {
-    final token = await SessionTokenStore.readToken();
-
     try {
+      final token = await SessionTokenStore.readToken();
+
       if (token != null && token.isNotEmpty) {
         await http
             .post(
@@ -109,7 +112,7 @@ class ApiService {
             .timeout(const Duration(seconds: 5));
       }
     } catch (_) {
-      // Local sign-out must still complete when the API is unreachable.
+      // Local sign-out must still complete when the API or secure storage fails.
     } finally {
       await SessionTokenStore.clearSession();
       _unauthorizedHandled = false;
