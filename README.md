@@ -105,6 +105,7 @@ Use a real HTTPS API domain for release builds. Do not put credentials, bearer t
 - An HTTP `401` or an inactive-account response from the session endpoint clears the local session and returns the user to login.
 - A network failure does not automatically delete the cached session; dashboards can show their connection-error state instead.
 - The app enforces a five-minute background inactivity timeout. The backend also has its own Sanctum token expiration policy.
+- Logbook photos are loaded from an authenticated private endpoint with the bearer token; the client does not construct public `/storage` URLs or hardcode a LAN IP.
 - Logout attempts to revoke the current token using `POST /api/logout`, then clears the local session even when the API is unreachable.
 
 Android secure-storage setup disables automatic app backup to avoid restoring encrypted preferences without the corresponding device key. The release manifest does not enable cleartext HTTP.
@@ -131,6 +132,8 @@ lib/
 ├── services/
 │   ├── api_service.dart
 │   └── session_token_store.dart
+├── widgets/
+│   └── secure_logbook_image.dart
 └── screens/
     ├── admin/
     ├── dosen/
