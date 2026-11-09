@@ -47,8 +47,24 @@ class SessionTokenStore {
   /// Reads the encrypted token and migrates the legacy SharedPreferences token
   /// exactly once, removing the plaintext copy after a successful write.
   static Future<String?> readToken() async {
-    final secureToken = await _backend.read();
     final preferences = await SharedPreferences.getInstance();
+    String? secureToken;
+
+    try {
+      secureToken = await _backend.read();
+    } catch (_) {
+      // A token that cannot be decrypted must not leave the app stuck in an
+      // invalid-session loop. Best-effort removal is followed by cache cleanup.
+      try {
+        await _backend.delete();
+      } catch (_) {
+        // The platform may be unable to access the key store at this moment.
+      }
+      await preferences.remove('token');
+      await preferences.remove('user');
+      await preferences.remove('background_at');
+      return null;
+    }
 
     if (secureToken != null && secureToken.isNotEmpty) {
       if (preferences.containsKey('token')) {
