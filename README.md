@@ -154,7 +154,8 @@ The dashboard exposes the inbox for Mahasiswa, Dosen, Korlap, and Admin. This is
 
 ## Backend staging integration
 
-Use the [NEXORA Backend Phase 2 staging runbook](https://github.com/gusti111/NEXORA-Backend/blob/feat/phase-2-offline-notifications/docs/STAGING_INTEGRATION_RUNBOOK.md) and [Postman collection](https://github.com/gusti111/NEXORA-Backend/blob/feat/phase-2-offline-notifications/postman/NEXORA-Phase-2-Staging.postman_collection.json) to validate the live Mobile–Backend contract. Configure the APK with `--dart-define=API_BASE_URL=https://STAGING-HOST/api`. A real staging integration has not yet been marked passed because no staging host or deployment environment is configured in the repositories.
+Use the [NEXORA Backend Phase 2 staging runbook](https://github.com/gusti111/NEXORA-Backend/blob/main/docs/STAGING_INTEGRATION_RUNBOOK.md) and [Postman collection](https://github.com/gusti111/NEXORA-Backend/blob/main/postman/NEXORA-Phase-2-Staging.postman_collection.json) to validate the live Mobile–Backend contract. Configure the APK with `--dart-define=API_BASE_URL=https://STAGING-HOST/api`. A real staging integration has not yet been marked passed because no staging host or deployment environment is configured in the repositories.
+
 ## Project structure
 
 ```text
