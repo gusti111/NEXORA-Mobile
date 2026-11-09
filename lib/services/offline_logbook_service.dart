@@ -196,6 +196,7 @@ class OfflineLogbookService {
         // Authentication, throttling, timeouts, and server errors should
         // remain pending so the same idempotency key can be retried later.
         if (statusCode == 401 ||
+            statusCode == 403 ||
             statusCode == 408 ||
             statusCode == 425 ||
             statusCode == 429 ||
