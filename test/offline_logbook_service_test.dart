@@ -30,7 +30,7 @@ void main() {
         await Directory.systemTemp.createTemp('nexora-outbox-service-');
     store = OfflineLogbookStore(
       databaseFactoryOverride: databaseFactoryFfi,
-      databasePathOverride: tempDirectory.path + '/offline.db',
+      databasePathOverride: '${tempDirectory.path}/offline.db',
     );
     service = OfflineLogbookService(
       store: store,
@@ -112,7 +112,7 @@ void main() {
 
   test('keeps HTTP 5xx drafts pending and preserves the photo extension',
       () async {
-    final photo = File(tempDirectory.path + '/evidence.webp');
+    final photo = File('${tempDirectory.path}/evidence.webp');
     await photo.writeAsBytes([1, 2, 3, 4]);
 
     final client = mockResponse(503, {
