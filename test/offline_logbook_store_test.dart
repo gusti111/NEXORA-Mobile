@@ -87,6 +87,26 @@ void main() {
     expect(await store.getFailed(1), isEmpty);
   });
 
+  test('failed draft deletion is restricted to its owner account', () async {
+    await store.enqueue(queueItem(
+      id: 'failed-a',
+      userId: 1,
+      status: 'failed',
+    ));
+    await store.enqueue(queueItem(
+      id: 'failed-b',
+      userId: 2,
+      status: 'failed',
+    ));
+
+    await store.deleteFailed('failed-a', 2);
+    expect((await store.getFailed(1)).single['local_id'], 'failed-a');
+
+    await store.deleteFailed('failed-a', 1);
+    expect(await store.getFailed(1), isEmpty);
+    expect((await store.getFailed(2)).single['local_id'], 'failed-b');
+  });
+
   test('caches last known server logbooks for offline reading', () async {
     await store.cacheLogbooks(7, [
       {'id': 91, 'judul_kegiatan': 'Logbook tersimpan', 'status': 'approved'},
