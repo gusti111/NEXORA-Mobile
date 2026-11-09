@@ -399,7 +399,7 @@ class ApiService {
 
       await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
           'message': data['message'],
@@ -636,8 +636,12 @@ class ApiService {
         );
       }
 
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 15));
-      final response = await http.Response.fromStream(streamedResponse);
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 15),
+      );
+      final response = await http.Response.fromStream(streamedResponse).timeout(
+        const Duration(seconds: 15),
+      );
       await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
 
