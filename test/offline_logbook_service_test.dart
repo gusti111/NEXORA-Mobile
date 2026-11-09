@@ -106,6 +106,20 @@ void main() {
     );
   });
 
+  test('keeps HTTP 403 drafts pending for account or assignment recovery', () async {
+    final client = mockResponse(403, {
+      'message': 'Akses ditolak. Periksa status akun dan penempatan PKL.',
+    });
+
+    ApiService.setLogbookClientFactoryForTesting(() => client);
+    final result = await submit();
+
+    expect(result['success'], isTrue);
+    expect(result['queued'], isTrue);
+    expect(await store.getPending(1), hasLength(1));
+    expect(await store.getFailed(1), isEmpty);
+  });
+
   test('keeps HTTP 5xx drafts pending and preserves the photo extension',
       () async {
     final photo = File('${tempDirectory.path}/evidence.webp');
