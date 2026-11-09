@@ -8,6 +8,7 @@ import 'laporan_mahasiswa_screen.dart';
 
 import '../../services/api_service.dart';
 import '../../main.dart';
+import '../notification_center_screen.dart';
 
 class DashboardMahasiswaScreen extends StatefulWidget {
   const DashboardMahasiswaScreen({super.key});
@@ -181,6 +182,18 @@ class _DashboardMahasiswaScreenState extends State<DashboardMahasiswaScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
+          IconButton(
+            tooltip: 'Notifikasi',
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const NotificationCenterScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             onPressed: _logout,
             icon: const Icon(Icons.logout, color: Colors.red),
