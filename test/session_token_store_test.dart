@@ -50,6 +50,22 @@ void main() {
     expect(preferences.containsKey('background_at'), isFalse);
   });
 
+  test('clears a corrupted session when secure storage cannot be read', () async {
+    backend.failRead = true;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString('token', 'legacy-token');
+    await preferences.setString('user', '{"id":1}');
+    await preferences.setInt('background_at', 123);
+
+    final token = await SessionTokenStore.readToken();
+
+    expect(token, isNull);
+    expect(backend.token, isNull);
+    expect(preferences.containsKey('token'), isFalse);
+    expect(preferences.containsKey('user'), isFalse);
+    expect(preferences.containsKey('background_at'), isFalse);
+  });
+
   test('rejects an empty secure token', () async {
     await expectLater(
       SessionTokenStore.writeToken('  '),
