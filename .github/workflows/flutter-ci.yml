@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   analyze-and-test:
@@ -25,6 +25,17 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Commit resolved dependency lockfile
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        run: |
+          if ! git diff --quiet -- pubspec.lock; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pubspec.lock
+            git commit -m "build(deps): update Flutter dependency lockfile [skip ci]"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
 
       - name: Upload resolved dependency lockfile
         uses: actions/upload-artifact@v4
