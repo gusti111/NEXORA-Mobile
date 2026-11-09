@@ -26,6 +26,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Upload resolved dependency lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexora-mobile-pubspec-lock
+          path: pubspec.lock
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Analyze Dart code
         run: flutter analyze
 
