@@ -83,15 +83,11 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     if (value == null) return '';
     final parsed = DateTime.tryParse(value.toString())?.toLocal();
     if (parsed == null) return '';
-    return parsed.day.toString().padLeft(2, '0') +
-        '/' +
-        parsed.month.toString().padLeft(2, '0') +
-        '/' +
-        parsed.year.toString() +
-        ' ' +
-        parsed.hour.toString().padLeft(2, '0') +
-        ':' +
-        parsed.minute.toString().padLeft(2, '0');
+    return '${parsed.day.toString().padLeft(2, '0')}/'
+        '${parsed.month.toString().padLeft(2, '0')}/'
+        '${parsed.year} '
+        '${parsed.hour.toString().padLeft(2, '0')}:'
+        '${parsed.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -113,7 +109,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? const ListView(
+            ? ListView(
                 physics: AlwaysScrollableScrollPhysics(),
                 children: [
                   SizedBox(height: 180),
@@ -139,7 +135,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                     ],
                   )
                 : _notifications.isEmpty
-                    ? const ListView(
+                    ? ListView(
                         physics: AlwaysScrollableScrollPhysics(),
                         children: [
                           SizedBox(height: 130),
@@ -213,8 +209,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                                   .isNotEmpty) ...[
                                             const SizedBox(height: 6),
                                             Text(
-                                              'Catatan: ' +
-                                                  data['comment'].toString(),
+                                              'Catatan: ${data['comment']}',
                                               style: const TextStyle(
                                                 fontSize: 12,
                                                 color: Colors.deepOrange,
