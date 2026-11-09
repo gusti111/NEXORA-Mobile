@@ -257,6 +257,10 @@ class _AuthGateState extends State<AuthGate> {
         notifyUnauthorized: false,
       );
 
+      if (validation['success'] == true) {
+        unawaited(OfflineLogbookService.instance.syncPendingLogbooks());
+      }
+
       if (validation['statusCode'] == 401 || validation['statusCode'] == 403) {
         return const LoginScreen();
       }
