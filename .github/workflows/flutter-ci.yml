@@ -34,3 +34,6 @@ jobs:
 
       - name: Run tests
         run: flutter test --reporter expanded
+
+      - name: Build Android debug APK
+        run: flutter build apk --debug
