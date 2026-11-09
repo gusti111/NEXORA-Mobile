@@ -586,6 +586,14 @@ class ApiService {
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
       await _handleUnauthorized(response);
+      if (response.statusCode == 401) {
+        return {
+          'success': false,
+          'message': 'Sesi login tidak valid. Silakan login kembali.',
+          'statusCode': 401,
+        };
+      }
+
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
