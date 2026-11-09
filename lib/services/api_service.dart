@@ -33,8 +33,9 @@ class ApiService {
   }
 
   static Future<void> _handleAuthenticationFailure(
-    http.Response response,
-  ) async {
+    http.Response response, {
+    bool notifyUnauthorized = true,
+  }) async {
     final isUnauthorized = response.statusCode == 401;
     final isInactiveAccount = _isInactiveAccountResponse(response);
 
@@ -45,15 +46,22 @@ class ApiService {
     try {
       await SessionTokenStore.clearSession();
     } finally {
-      await onUnauthorized?.call();
+      if (notifyUnauthorized) {
+        await onUnauthorized?.call();
+      }
     }
   }
 
   /// Revalidates the bearer token and refreshes the cached user profile.
   /// A network failure is returned as an unknown status and does not erase the
   /// session; explicit 401/403 responses invalidate the local session.
-  static Future<Map<String, dynamic>> validateSession() async {
-    final result = await _getAuthenticated('/user');
+  static Future<Map<String, dynamic>> validateSession({
+    bool notifyUnauthorized = true,
+  }) async {
+    final result = await _getAuthenticated(
+      '/user',
+      notifyUnauthorized: notifyUnauthorized,
+    );
     if (result['success'] == true) {
       final user = Map<String, dynamic>.from(result['data'] as Map);
       final prefs = await SharedPreferences.getInstance();
@@ -61,11 +69,6 @@ class ApiService {
       return {'success': true, 'user': user, 'data': user, 'statusCode': 200};
     }
 
-    final statusCode = result['statusCode'];
-    if (statusCode == 403 && result['message'] == _inactiveAccountMessage) {
-      await SessionTokenStore.clearSession();
-      await onUnauthorized?.call();
-    }
     return result;
   }
 
@@ -812,8 +815,9 @@ class ApiService {
   // HELPER
   // ==========================================
   static Future<Map<String, dynamic>> _getAuthenticated(
-    String endpoint,
-  ) async {
+    String endpoint, {
+    bool notifyUnauthorized = true,
+  }) async {
     try {
       final token = await SessionTokenStore.readToken();
 
@@ -829,7 +833,10 @@ class ApiService {
         },
       );
 
-      await _handleAuthenticationFailure(response);
+      await _handleAuthenticationFailure(
+        response,
+        notifyUnauthorized: notifyUnauthorized,
+      );
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
