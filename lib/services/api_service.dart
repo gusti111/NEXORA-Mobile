@@ -21,13 +21,6 @@ class ApiService {
   /// Set by the root app to clear navigation when the API rejects a session.
   static Future<void> Function()? onUnauthorized;
   static void Function()? onAuthenticated;
-  static http.Client Function() _logbookClientFactory = () => http.Client();
-
-  static void setLogbookClientFactoryForTesting(
-    http.Client Function()? factory,
-  ) {
-    _logbookClientFactory = factory ?? () => http.Client();
-  }
   static bool _unauthorizedHandled = false;
   static const String _inactiveAccountMessage =
       'Akun kamu sedang dinonaktifkan. Hubungi Admin.';
@@ -201,7 +194,7 @@ class ApiService {
 
       await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 201) {
         return {
           'success': true,
           'message': data['message'],
@@ -406,7 +399,7 @@ class ApiService {
 
       await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 201) {
         return {
           'success': true,
           'message': data['message'],
@@ -513,79 +506,6 @@ class ApiService {
   }
 
   // ==========================================
-  // NOTIFICATIONS
-  // ==========================================
-  static Future<Map<String, dynamic>> getNotifications() async {
-    final result = await _getAuthenticated('/notifications');
-    if (result['success'] == true) {
-      result['unread_count'] =
-          result['unread_count'] is int ? result['unread_count'] : 0;
-    }
-    return result;
-  }
-
-  static Future<int> getUnreadNotificationCount() async {
-    final result = await _getAuthenticated('/notifications/unread-count');
-    if (result['success'] != true) return 0;
-    final value = result['data']?['unread_count'];
-    return value is int ? value : int.tryParse('$value') ?? 0;
-  }
-
-  static Future<Map<String, dynamic>> markNotificationRead(
-    String notificationId,
-  ) async {
-    return _sendAuthenticated(
-      'PATCH',
-      '/notifications/$notificationId/read',
-    );
-  }
-
-  static Future<Map<String, dynamic>> markAllNotificationsRead() async {
-    return _sendAuthenticated('PATCH', '/notifications/read-all');
-  }
-
-  static Future<Map<String, dynamic>> _sendAuthenticated(
-    String method,
-    String endpoint,
-  ) async {
-    try {
-      final token = await SessionTokenStore.readToken();
-      if (token == null || token.isEmpty) {
-        return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
-      }
-
-      final uri = Uri.parse('$baseUrl$endpoint');
-      final headers = {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
-      late http.Response response;
-      switch (method) {
-        case 'PATCH':
-          response = await http.patch(uri, headers: headers);
-          break;
-        default:
-          return {'success': false, 'message': 'Metode tidak didukung.'};
-      }
-
-      await _handleAuthenticationFailure(response);
-      final data = jsonDecode(response.body);
-      return {
-        'success': response.statusCode >= 200 && response.statusCode < 300,
-        'message': data['message'] ?? 'Permintaan selesai.',
-        'data': data['data'],
-        'statusCode': response.statusCode,
-      };
-    } catch (_) {
-      return {
-        'success': false,
-        'message': 'Tidak dapat terhubung ke server.',
-        'statusCode': null,
-      };
-    }
-  }
-
-  // ==========================================
   // MAHASISWA
   // ==========================================
   static Future<Map<String, dynamic>> getStudentPkls() async {
@@ -609,12 +529,10 @@ class ApiService {
     required String judulKegiatan,
     required String tanggalKegiatan,
     required String deskripsiKegiatan,
-    String? idempotencyKey,
     File? foto,
     double? latitude,
     double? longitude,
   }) async {
-    final client = _logbookClientFactory();
     try {
       final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
@@ -633,9 +551,6 @@ class ApiService {
       request.fields['judul_kegiatan'] = judulKegiatan;
       request.fields['tanggal_kegiatan'] = tanggalKegiatan;
       request.fields['deskripsi_kegiatan'] = deskripsiKegiatan;
-      if (idempotencyKey != null) {
-        request.fields['idempotency_key'] = idempotencyKey;
-      }
       if (latitude != null) request.fields['latitude'] = latitude.toString();
       if (longitude != null) request.fields['longitude'] = longitude.toString();
       if (foto != null) {
@@ -644,40 +559,28 @@ class ApiService {
         );
       }
 
-      final streamedResponse = await client.send(request).timeout(
-        const Duration(seconds: 15),
-      );
-      final response = await http.Response.fromStream(streamedResponse).timeout(
-        const Duration(seconds: 15),
-      );
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
       await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 201) {
         return {
           'success': true,
           'message': data['message'],
           'data': data['data'],
-          'statusCode': response.statusCode,
-          'duplicate': data['duplicate'] == true,
         };
       }
       return {
         'success': false,
         'message': data['message'] ?? 'Gagal mengirim logbook.',
         'errors': data['errors'],
-        'statusCode': response.statusCode,
-        'retryable': response.statusCode >= 500,
       };
     } catch (e) {
       return {
         'success': false,
         'message': 'Tidak dapat mengirim logbook. Periksa koneksi server.',
-        'statusCode': null,
-        'retryable': true,
       };
-    } finally {
-      client.close();
     }
   }
 
@@ -932,7 +835,7 @@ class ApiService {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 8));
+      );
 
       await _handleAuthenticationFailure(
         response,
@@ -945,7 +848,6 @@ class ApiService {
           'success': true,
           'data': data['data'],
           'message': data['message'],
-          'unread_count': data['unread_count'],
           'statusCode': response.statusCode,
         };
       }

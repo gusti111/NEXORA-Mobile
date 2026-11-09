@@ -7,9 +7,7 @@ import 'profil_mahasiswa_screen.dart';
 import 'laporan_mahasiswa_screen.dart';
 
 import '../../services/api_service.dart';
-import '../../services/offline_logbook_service.dart';
 import '../../main.dart';
-import '../notification_center_screen.dart';
 
 class DashboardMahasiswaScreen extends StatefulWidget {
   const DashboardMahasiswaScreen({super.key});
@@ -25,8 +23,6 @@ class _DashboardMahasiswaScreenState extends State<DashboardMahasiswaScreen> {
 
   String namaMahasiswa = 'Mahasiswa';
   Map<String, dynamic>? pkl;
-  bool _offlineMode = false;
-  Map<String, int> _queueSummary = {'pending': 0, 'failed': 0, 'total': 0};
   Map<String, dynamic> statistik = {
     'total_logbook': 0,
     'approved': 0,
@@ -56,34 +52,29 @@ class _DashboardMahasiswaScreenState extends State<DashboardMahasiswaScreen> {
         namaMahasiswa = user['name'] ?? 'Mahasiswa';
       }
 
-      final offlineService = OfflineLogbookService.instance;
       final results = await Future.wait([
-        offlineService.loadStudentPkls(),
-        offlineService.loadStudentLogbooks(),
+        ApiService.getStudentPkls(),
         ApiService.getStudentStatistics(),
-        offlineService.getQueueSummary(),
       ]);
 
-      final daftarPkl =
-          (results[0] as List).cast<Map<String, dynamic>>();
-      final logbooks =
-          (results[1] as List).cast<Map<String, dynamic>>();
-      final statistikResult = results[2] as Map<String, dynamic>;
-      final queueSummary = results[3] as Map<String, int>;
+      final pklResult = results[0];
+      final statistikResult = results[1];
 
-      final daftarAktif = daftarPkl
+      if (pklResult['success'] != true) {
+        throw Exception(pklResult['message'] ?? 'Gagal mengambil data PKL.');
+      }
+
+      if (statistikResult['success'] != true) {
+        throw Exception(
+          statistikResult['message'] ?? 'Gagal mengambil statistik.',
+        );
+      }
+
+      final List<dynamic> daftarPkl = pklResult['data'] ?? [];
+      final List<dynamic> daftarAktif = daftarPkl
           .where((item) =>
               item['status'] == 'berlangsung' || item['status'] == 'selesai')
           .toList();
-
-      final computedStatistics = <String, dynamic>{
-        'total_logbook': logbooks.length,
-        'approved': logbooks.where((item) => item['status'] == 'approved').length,
-        'pending': logbooks.where((item) => item['status'] == 'pending').length,
-        'revision_requested':
-            logbooks.where((item) => item['status'] == 'revision_requested').length,
-        'rejected': logbooks.where((item) => item['status'] == 'rejected').length,
-      };
 
       if (!mounted) return;
 
@@ -91,11 +82,8 @@ class _DashboardMahasiswaScreenState extends State<DashboardMahasiswaScreen> {
         pkl = daftarAktif.isNotEmpty
             ? Map<String, dynamic>.from(daftarAktif.first)
             : null;
-        _offlineMode = statistikResult['success'] != true;
-        statistik = statistikResult['success'] == true
-            ? Map<String, dynamic>.from(statistikResult['data'] ?? {})
-            : computedStatistics;
-        _queueSummary = queueSummary;
+
+        statistik = Map<String, dynamic>.from(statistikResult['data'] ?? {});
         isLoading = false;
       });
     } catch (e) {
@@ -194,18 +182,6 @@ class _DashboardMahasiswaScreenState extends State<DashboardMahasiswaScreen> {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            tooltip: 'Notifikasi',
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const NotificationCenterScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
             onPressed: _logout,
             icon: const Icon(Icons.logout, color: Colors.red),
             tooltip: 'Logout',
@@ -244,60 +220,6 @@ class _DashboardMahasiswaScreenState extends State<DashboardMahasiswaScreen> {
                   style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
                 const SizedBox(height: 25),
-
-                if (_offlineMode)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 14),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.cloud_off_outlined,
-                            color: Colors.deepOrange, size: 20),
-                        SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            'Mode offline: menampilkan data terakhir yang tersimpan di perangkat.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.deepOrange,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                if (_queueSummary['total']! > 0)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 14),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF176B4D).withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.sync, color: Color(0xFF176B4D)),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            '${_queueSummary['pending']} draft menunggu sinkronisasi · '
-                            '${_queueSummary['failed']} perlu diperiksa',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF176B4D),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
 
                 if (isLoading)
                   const Center(
