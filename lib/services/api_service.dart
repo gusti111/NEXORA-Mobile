@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'session_token_store.dart';
 
 class ApiService {
-  /// Override at build time with --dart-define=API_BASE_URL=<base-url>.
+  /// Override at build time with `--dart-define=API_BASE_URL=YOUR_API_BASE_URL`.
   /// The default targets the Android Studio emulator host machine.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
