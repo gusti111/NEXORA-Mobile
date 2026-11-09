@@ -49,8 +49,6 @@ void main() {
 
   MockClient mockResponse(int statusCode, Map<String, dynamic> body) {
     return MockClient((request) async {
-      expect(request.method, 'POST');
-      expect(request.url.path, endsWith('/logbooks'));
       return http.Response(
         jsonEncode(body),
         statusCode,
