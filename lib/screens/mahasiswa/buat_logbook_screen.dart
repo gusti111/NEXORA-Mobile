@@ -4,7 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-import '../../services/offline_logbook_service.dart';
+import '../../services/api_service.dart';
 
 class BuatLogbookScreen extends StatefulWidget {
   const BuatLogbookScreen({super.key});
@@ -19,39 +19,12 @@ class _BuatLogbookScreenState extends State<BuatLogbookScreen> {
   final _deskripsiController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
-  List<Map<String, dynamic>> _availablePkls = [];
-  int? _selectedPklId;
-  bool _loadingPkls = true;
   File? _fotoFile;
   double? _latitude;
   double? _longitude;
 
   bool _isLoading = false;
   bool _isLoadingLocation = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPkls();
-  }
-
-  Future<void> _loadPkls() async {
-    try {
-      final pkls = await OfflineLogbookService.instance.loadStudentPkls();
-      final active = pkls.where((pkl) => pkl['status'] == 'berlangsung').toList();
-      if (!mounted) return;
-      setState(() {
-        _availablePkls = active;
-        _selectedPklId = active.isNotEmpty
-            ? int.tryParse(active.first['id'].toString())
-            : null;
-        _loadingPkls = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loadingPkls = false);
-    }
-  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -124,57 +97,18 @@ class _BuatLogbookScreenState extends State<BuatLogbookScreen> {
 
   Future<void> _submitLogbook() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedPklId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Penempatan PKL aktif tidak ditemukan.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    final selectedPkl = _availablePkls.firstWhere(
-      (item) => int.tryParse(item['id'].toString()) == _selectedPklId,
-    );
-    final startDate = DateTime.tryParse(
-      selectedPkl['tanggal_mulai']?.toString() ?? '',
-    );
-    final finishDate = DateTime.tryParse(
-      selectedPkl['tanggal_selesai']?.toString() ?? '',
-    );
-    final activityDate = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-    final today = DateTime.now();
-    final latestAllowedDate = finishDate == null || finishDate.isAfter(today)
-        ? DateTime(today.year, today.month, today.day)
-        : DateTime(finishDate.year, finishDate.month, finishDate.day);
-
-    if (startDate == null ||
-        activityDate.isBefore(DateTime(startDate.year, startDate.month, startDate.day)) ||
-        activityDate.isAfter(latestAllowedDate)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Tanggal kegiatan harus berada dalam periode PKL dan tidak boleh melewati hari ini.',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
 
-    final tanggalFormat = DateFormat('yyyy-MM-dd').format(_selectedDate);
-    final result = await OfflineLogbookService.instance.submitLogbook(
-      pklId: _selectedPklId!,
+    final pklId = 1;
+    final tanggalFormat =
+        DateFormat('yyyy-MM-dd').format(_selectedDate);
+
+    final result = await ApiService.createStudentLogbook(
+      pklId: pklId,
       judulKegiatan: _judulController.text.trim(),
       tanggalKegiatan: tanggalFormat,
-      deskripsiKegiatan: _deskripsiController.text.trim(),
+      deskripsiKegiatan: _deskripsiController.text,
       foto: _fotoFile,
       latitude: _latitude,
       longitude: _longitude,
@@ -184,23 +118,17 @@ class _BuatLogbookScreenState extends State<BuatLogbookScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      final queued = result['queued'] == true;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            queued
-                ? 'Draft tersimpan di perangkat. Sinkronisasi akan dicoba kembali.'
-                : 'Logbook berhasil dikirim!',
-          ),
-          backgroundColor: queued ? Colors.orange : Colors.green,
-          duration: const Duration(seconds: 4),
+        const SnackBar(
+          content: Text('Logbook berhasil dikirim!'),
+          backgroundColor: Colors.green,
         ),
       );
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message'] ?? 'Gagal menyimpan logbook.'),
+          content: Text(result['message'] ?? 'Gagal mengirim logbook.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -223,9 +151,7 @@ class _BuatLogbookScreenState extends State<BuatLogbookScreen> {
         backgroundColor: const Color(0xFF145C4B),
         foregroundColor: Colors.white,
       ),
-      body: _loadingPkls
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
@@ -234,48 +160,6 @@ class _BuatLogbookScreenState extends State<BuatLogbookScreen> {
             children: [
               const Text('Tanggal Kegiatan',
                   style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              if (_loadingPkls)
-                const LinearProgressIndicator()
-              else if (_availablePkls.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Penempatan PKL aktif belum tersedia di cache. '
-                    'Hubungkan perangkat ke server dan muat ulang dashboard terlebih dahulu.',
-                    style: TextStyle(fontSize: 12, color: Colors.deepOrange),
-                  ),
-                )
-              else
-                DropdownButtonFormField<int>(
-                  initialValue: _selectedPklId,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  items: _availablePkls.map((pkl) {
-                    final id = int.tryParse(pkl['id'].toString());
-                    return DropdownMenuItem<int>(
-                      value: id,
-                      child: Text(
-                        pkl['nama_instansi']?.toString() ?? 'Penempatan PKL',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setState(() => _selectedPklId = value),
-                ),
-              const SizedBox(height: 18),
               const SizedBox(height: 8),
               InkWell(
                 onTap: _pickDate,

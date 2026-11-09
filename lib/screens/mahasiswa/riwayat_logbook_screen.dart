@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../services/offline_logbook_service.dart';
+import '../../services/api_service.dart';
 import '../../widgets/secure_logbook_image.dart';
 import 'revisi_logbook_screen.dart';
 import 'detail_logbook_mahasiswa_screen.dart';
@@ -32,16 +32,19 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
     });
 
     try {
-      final service = OfflineLogbookService.instance;
-      final remoteOrCached = await service.loadStudentLogbooks();
-      final queued = await service.getQueueItems();
+      final result = await ApiService.getStudentLogbooks();
+
+      if (result['success'] != true) {
+        throw Exception(
+          result['message'] ?? 'Gagal mengambil riwayat logbook.',
+        );
+      }
 
       if (!mounted) return;
 
       setState(() {
-        logbooks = [...remoteOrCached, ...queued];
+        logbooks = result['data'] ?? [];
         isLoading = false;
-        errorMessage = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -81,10 +84,6 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
         return Colors.orange.shade800;
       case 'rejected':
         return Colors.red;
-      case 'offline_pending':
-        return Colors.blue;
-      case 'sync_failed':
-        return Colors.redAccent;
       default:
         return Colors.grey;
     }
@@ -100,10 +99,6 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
         return 'Perlu Revisi';
       case 'rejected':
         return 'Ditolak';
-      case 'offline_pending':
-        return 'Menunggu Sinkronisasi';
-      case 'sync_failed':
-        return 'Perlu Perbaikan';
       default:
         return status;
     }
@@ -126,13 +121,6 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF176B4D),
         elevation: 0,
-        actions: [
-          IconButton(
-            tooltip: 'Sinkronkan draft tersimpan',
-            onPressed: _syncPending,
-            icon: const Icon(Icons.cloud_sync_outlined),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: loadLogbooks,
@@ -141,24 +129,6 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
             _buildFilterBar(),
             Expanded(child: _buildBody()),
           ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _syncPending() async {
-    final result =
-        await OfflineLogbookService.instance.syncPendingLogbooks();
-    await loadLogbooks();
-    if (!mounted) return;
-
-    final synced = result['synced'] ?? 0;
-    final pending = result['pending'] ?? 0;
-    final failed = result['failed'] ?? 0;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Tersinkronisasi: $synced · Menunggu: $pending · Perlu perbaikan: $failed',
         ),
       ),
     );
@@ -276,18 +246,6 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () async {
-        if (item['is_local'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                item['status'] == 'sync_failed'
-                    ? 'Draft perlu diperbaiki: ${item['catatan_dosen'] ?? ''}'
-                    : 'Draft ini belum diterima server. Tekan tombol sinkronisasi saat terhubung.',
-              ),
-            ),
-          );
-          return;
-        }
         final changed = await Navigator.push(
           context,
           MaterialPageRoute(
@@ -396,76 +354,6 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
                     Text(
                       item['catatan_dosen'].toString(),
                       style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            if (item['status'] == 'sync_failed') ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Draft belum diterima server',
-                      style: TextStyle(
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      item['catatan_dosen']?.toString() ?? '',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () async {
-                          final localId = item['local_id']?.toString();
-                          if (localId == null) return;
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (dialogContext) => AlertDialog(
-                              title: const Text('Hapus draft gagal?'),
-                              content: const Text(
-                                'Draft lokal ini akan dihapus dari perangkat. '
-                                'Kamu dapat membuat ulang logbook setelah memperbaiki datanya.',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(dialogContext, false),
-                                  child: const Text('Batal'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(dialogContext, true),
-                                  child: const Text('Hapus'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm != true) return;
-                          final deleted = await OfflineLogbookService.instance
-                              .deleteFailedDraft(localId);
-                          if (!mounted) return;
-                          await loadLogbooks();
-                          if (deleted && mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Draft lokal dihapus.')),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.delete_outline, size: 17),
-                        label: const Text('Hapus draft'),
-                      ),
                     ),
                   ],
                 ),

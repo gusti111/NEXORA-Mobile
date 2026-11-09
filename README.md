@@ -43,7 +43,6 @@ Laravel REST API (NEXORA Backend)
 - `shared_preferences` for non-secret cached profile and local inactivity timestamp
 - `image_picker` and `geolocator` for logbook attachments
 - `path_provider` and `open_filex` for exported reports
-- `sqflite` for the offline cache/outbox and `uuid` for stable submission keys
 
 ## Requirements
 
@@ -107,7 +106,6 @@ Use a real HTTPS API domain for release builds. Do not put credentials, bearer t
 - A network failure does not automatically delete the cached session; dashboards can show their connection-error state instead.
 - The app enforces a five-minute background inactivity timeout. The backend also has its own Sanctum token expiration policy.
 - Logbook photos are loaded from an authenticated private endpoint with the bearer token; the client does not construct public `/storage` URLs or hardcode a LAN IP.
-- Database-backed in-app notifications are available to all four roles; the inbox supports unread counts and mark-read actions.
 - Logout attempts to revoke the current token using `POST /api/logout`, then clears the local session even when the API is unreachable.
 
 Android secure-storage setup disables automatic app backup to avoid restoring encrypted preferences without the corresponding device key. The release manifest does not enable cleartext HTTP.
@@ -126,31 +124,6 @@ The mobile client uses the `/api` prefix. Important endpoints include:
 
 See `lib/services/api_service.dart` and `routes/api.php` in the backend repository for the current request/response contract.
 
-## Offline logbook drafts and synchronization
-
-The student logbook flow uses a local SQLite outbox:
-
-1. The app stores the logbook fields under the signed-in user ID before attempting network submission.
-2. A selected photo is copied into the app's documents directory so it remains available after the image picker cache is cleared.
-3. Each draft receives a stable UUID. The same UUID is sent as `idempotency_key` every time the draft is retried.
-4. The backend returns the original record on a replay instead of creating a duplicate.
-5. Successful drafts are removed from the outbox and their copied photo is deleted. Network/server failures remain pending; validation conflicts are marked failed and can be removed from the history screen after review.
-6. The app shows cached PKL/logbook data when the server cannot be reached.
-
-Synchronization is attempted after login, when the app resumes, and manually from the student logbook history screen. This phase does **not** run a background worker while the application is fully terminated, and it does not use a connectivity signal as proof that the internet is reachable; the API request itself determines whether synchronization succeeds.
-
-The local queue is scoped by the current account ID. Access tokens are not stored in SQLite. Queue text and copied evidence files are stored in the app's private documents area, but this phase does not add separate application-level encryption for those draft contents. Device-level file protection and a retention policy should be reviewed before handling highly sensitive evidence.
-
-## In-app notifications
-
-The mobile inbox consumes the backend database notification endpoints:
-
-- `GET /api/notifications` returns the latest 50 notifications and unread count.
-- `GET /api/notifications/unread-count` returns the current unread count.
-- `PATCH /api/notifications/{id}/read` marks one of the current user's notifications as read.
-- `PATCH /api/notifications/read-all` marks all of the current user's notifications as read.
-
-The dashboard exposes the inbox for Mahasiswa, Dosen, Korlap, and Admin. This is an in-app inbox; Firebase Cloud Messaging / Apple Push Notification delivery is not configured in this phase.
 ## Project structure
 
 ```text
@@ -158,23 +131,17 @@ lib/
 ├── main.dart
 ├── services/
 │   ├── api_service.dart
-│   ├── session_token_store.dart
-│   ├── offline_logbook_store.dart
-│   └── offline_logbook_service.dart
+│   └── session_token_store.dart
 ├── widgets/
 │   └── secure_logbook_image.dart
-├── screens/
-│   ├── notification_center_screen.dart
-│   ├── admin/
-│   ├── dosen/
-│   ├── korlap/
-│   └── mahasiswa/
+└── screens/
+    ├── admin/
+    ├── dosen/
+    ├── korlap/
+    └── mahasiswa/
 
 test/
 ├── support/
-├── api_service_logbook_test.dart
-├── offline_logbook_service_test.dart
-├── offline_logbook_store_test.dart
 ├── session_token_store_test.dart
 └── widget_test.dart
 ```
@@ -191,13 +158,7 @@ flutter analyze
 flutter test --reporter expanded
 ```
 
-On Linux, install the SQLite development library before running the FFI-based outbox tests:
-
-```bash
-sudo apt-get install libsqlite3-dev
-```
-
-GitHub Actions runs the Flutter analyzer and test suite on pushes to `main`, `fix/**`, and `feat/**`, and on pull requests targeting `main` or `fix/**`.
+GitHub Actions runs the Flutter analyzer and test suite on pushes to `main` / `fix/**` and on pull requests targeting `main`.
 
 ## Release readiness notes
 
@@ -205,8 +166,7 @@ GitHub Actions runs the Flutter analyzer and test suite on pushes to `main`, `fi
 - Configure a dedicated Android release keystore before Play Store publication. The current Gradle release configuration still uses the debug signing key and is for development/testing only.
 - Test secure-storage migration on an installed build that already has a legacy session.
 - Validate camera, location, file export, and app lifecycle behavior on physical devices.
-- Keep `pubspec.lock` committed after dependency resolution.
-- Review offline queue retention, app-private photo retention, and device-loss behavior before production use.
+- Refresh and commit `pubspec.lock` after dependency resolution.
 
 ## Related repository
 
