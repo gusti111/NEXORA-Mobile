@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/api_service.dart';
 import 'services/session_token_store.dart';
+import 'services/offline_logbook_service.dart';
 import 'screens/mahasiswa/dashboard_mahasiswa_screen.dart';
 import 'screens/dosen/dashboard_dosen_screen.dart';
 import 'screens/korlap/dashboard_korlap_screen.dart';
@@ -35,7 +37,10 @@ class _NexoraAppState extends State<NexoraApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     ApiService.onUnauthorized = _handleUnauthorized;
-    ApiService.onAuthenticated = () => _redirectingAfterUnauthorized = false;
+    ApiService.onAuthenticated = () {
+      _redirectingAfterUnauthorized = false;
+      unawaited(OfflineLogbookService.instance.syncPendingLogbooks());
+    };
   }
 
   @override
@@ -54,8 +59,15 @@ class _NexoraAppState extends State<NexoraApp> with WidgetsBindingObserver {
     }
 
     if (state == AppLifecycleState.resumed) {
-      _checkSessionTimeout();
+      unawaited(_resumeAndSync());
     }
+  }
+
+  Future<void> _resumeAndSync() async {
+    await _checkSessionTimeout();
+    final token = await SessionTokenStore.readToken();
+    if (token == null || token.isEmpty) return;
+    await OfflineLogbookService.instance.syncPendingLogbooks();
   }
 
   Future<void> _saveBackgroundTime() async {
