@@ -59,10 +59,13 @@ void main() {
 
     expect(captured?.method, 'POST');
     expect(captured?.url.path, endsWith('/logbooks'));
-    final authorization = captured?.headers.entries
+    final authorizationEntries = captured?.headers.entries
         .where((entry) => entry.key.toLowerCase() == 'authorization')
-        .map((entry) => entry.value)
-        .firstOrNull;
+        .toList();
+    final authorization = authorizationEntries == null ||
+            authorizationEntries.isEmpty
+        ? null
+        : authorizationEntries.first.value;
     expect(authorization, 'Bearer test-session-token');
 
     expect(result['success'], isTrue);
