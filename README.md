@@ -119,12 +119,14 @@ The mobile client uses the `/api` prefix. Important endpoints include:
 | Area | Endpoints |
 | --- | --- |
 | Authentication | `POST /login`, `POST /logout`, `GET /user` |
-| Mahasiswa | `GET /pkls`, `GET /logbooks`, `POST /logbooks`, `POST /logbooks/{id}/resubmit`, `GET /logbooks/statistics`, `GET /logbooks/{id}/history` |
+| Mahasiswa | `GET /pkls`, `GET /logbooks`, `POST /logbooks`, `PUT /logbooks/{id}/resubmit`, `GET /logbooks/statistics`, `GET /logbooks/{id}/history` |
 | Dosen | `GET /dosen/logbooks`, `GET /dosen/mahasiswa`, `PATCH /dosen/logbooks/{id}/review` |
 | Korlap | `GET /korlap/logbooks`, `GET /korlap/statistics`, `GET /korlap/mahasiswa`, `PUT /korlap/pkls/{id}/complete`, report exports |
 | Admin | `GET /admin/statistics`, user management, PKL management, and logbook oversight |
 
 See `lib/services/api_service.dart` and `routes/api.php` in the backend repository for the current request/response contract.
+
+For multipart logbook resubmission, the Flutter client sends `POST` with Laravel's `_method=PUT` field; the effective backend route remains `PUT /api/logbooks/{id}/resubmit`.
 
 ## Offline logbook drafts and synchronization
 
