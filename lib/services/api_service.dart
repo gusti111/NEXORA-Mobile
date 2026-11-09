@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'session_token_store.dart';
+
 class ApiService {
   /// Override at build time with --dart-define=API_BASE_URL=<base-url>.
   /// The default targets the Android Studio emulator host machine.
@@ -11,6 +13,37 @@ class ApiService {
     'API_BASE_URL',
     defaultValue: 'http://10.0.2.2:8000/api',
   );
+
+  /// Set by the root app to clear navigation when the API rejects a session.
+  static Future<void> Function()? onUnauthorized;
+  static bool _unauthorizedHandled = false;
+
+  static Future<void> _handleUnauthorized(http.Response response) async {
+    if (response.statusCode != 401 || _unauthorizedHandled) return;
+    _unauthorizedHandled = true;
+    await SessionTokenStore.clearSession();
+    await onUnauthorized?.call();
+  }
+
+  /// Revalidates the bearer token and refreshes the cached user profile.
+  /// A network failure is returned as an unknown status and does not erase the
+  /// session; explicit 401/403 responses invalidate the local session.
+  static Future<Map<String, dynamic>> validateSession() async {
+    final result = await _getAuthenticated('/user');
+    if (result['success'] == true) {
+      final user = Map<String, dynamic>.from(result['data'] as Map);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', jsonEncode(user));
+      return {'success': true, 'user': user, 'data': user, 'statusCode': 200};
+    }
+
+    final statusCode = result['statusCode'];
+    if (statusCode == 403) {
+      await SessionTokenStore.clearSession();
+      await onUnauthorized?.call();
+    }
+    return result;
+  }
 
   // ==========================================
   // AUTH
@@ -32,10 +65,11 @@ class ApiService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
+        await SessionTokenStore.writeToken(data['token'] as String);
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', data['token']);
         await prefs.setString('user', jsonEncode(data['user']));
         await prefs.remove('background_at');
+        _unauthorizedHandled = false;
         return {
           'success': true,
           'message': data['message'],
@@ -58,8 +92,7 @@ class ApiService {
   }
 
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await SessionTokenStore.readToken();
 
     try {
       if (token != null && token.isNotEmpty) {
@@ -76,9 +109,8 @@ class ApiService {
     } catch (_) {
       // Local sign-out must still complete when the API is unreachable.
     } finally {
-      await prefs.remove('token');
-      await prefs.remove('user');
-      await prefs.remove('background_at');
+      await SessionTokenStore.clearSession();
+      _unauthorizedHandled = false;
     }
   }
 
@@ -106,8 +138,7 @@ class ApiService {
     String? username,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -129,6 +160,7 @@ class ApiService {
         }),
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 201) {
         return {
@@ -156,8 +188,7 @@ class ApiService {
     String? role,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -178,6 +209,7 @@ class ApiService {
         }),
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -201,8 +233,7 @@ class ApiService {
     required String password,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -217,6 +248,7 @@ class ApiService {
         body: jsonEncode({'password': password}),
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': data['message']};
@@ -233,8 +265,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> toggleAdminUserStatus(int userId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -247,6 +278,7 @@ class ApiService {
         },
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -266,8 +298,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> deleteAdminUser(int userId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -280,6 +311,7 @@ class ApiService {
         },
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': data['message']};
@@ -310,8 +342,7 @@ class ApiService {
     String? tanggalSelesai,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -334,6 +365,7 @@ class ApiService {
         }),
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 201) {
         return {
@@ -363,8 +395,7 @@ class ApiService {
     String? status,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -387,6 +418,7 @@ class ApiService {
         }),
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -407,8 +439,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> deleteAdminPkl(int pklId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -421,6 +452,7 @@ class ApiService {
         },
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': data['message']};
@@ -470,8 +502,7 @@ class ApiService {
     double? longitude,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -498,6 +529,7 @@ class ApiService {
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
@@ -527,8 +559,7 @@ class ApiService {
     File? foto,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -552,6 +583,7 @@ class ApiService {
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -597,8 +629,7 @@ class ApiService {
     String? komentar,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -616,6 +647,7 @@ class ApiService {
         }),
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -654,8 +686,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> completeKorlapPkl(int pklId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -669,6 +700,7 @@ class ApiService {
         },
       );
 
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -694,8 +726,7 @@ class ApiService {
     required String savePath,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
       }
@@ -712,6 +743,7 @@ class ApiService {
         },
       );
 
+      await _handleUnauthorized(response);
       if (response.statusCode != 200) {
         return {
           'success': false,
@@ -750,8 +782,7 @@ class ApiService {
     String endpoint,
   ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
 
       if (token == null || token.isEmpty) {
         return {'success': false, 'message': 'Sesi login tidak ditemukan.'};
@@ -765,6 +796,8 @@ class ApiService {
         },
       );
 
+      await _handleUnauthorized(response);
+      await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -772,17 +805,20 @@ class ApiService {
           'success': true,
           'data': data['data'],
           'message': data['message'],
+          'statusCode': response.statusCode,
         };
       }
 
       return {
         'success': false,
         'message': data['message'] ?? 'Gagal mengambil data dari server.',
+        'statusCode': response.statusCode,
       };
     } catch (e) {
       return {
         'success': false,
         'message': 'Tidak dapat mengambil data. Periksa koneksi server.',
+        'statusCode': null,
       };
     }
   }
