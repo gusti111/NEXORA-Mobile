@@ -401,6 +401,76 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
                 ),
               ),
             ],
+            if (item['status'] == 'sync_failed') ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Draft belum diterima server',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      item['catatan_dosen']?.toString() ?? '',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () async {
+                          final localId = item['local_id']?.toString();
+                          if (localId == null) return;
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (dialogContext) => AlertDialog(
+                              title: const Text('Hapus draft gagal?'),
+                              content: const Text(
+                                'Draft lokal ini akan dihapus dari perangkat. '
+                                'Kamu dapat membuat ulang logbook setelah memperbaiki datanya.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext, false),
+                                  child: const Text('Batal'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext, true),
+                                  child: const Text('Hapus'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm != true) return;
+                          final deleted = await OfflineLogbookService.instance
+                              .deleteFailedDraft(localId);
+                          if (!mounted) return;
+                          await loadLogbooks();
+                          if (deleted && mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Draft lokal dihapus.')),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.delete_outline, size: 17),
+                        label: const Text('Hapus draft'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (status == 'revision_requested') ...[
               const SizedBox(height: 14),
               SizedBox(
