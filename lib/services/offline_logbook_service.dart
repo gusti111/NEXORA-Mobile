@@ -192,18 +192,27 @@ class OfflineLogbookService {
         }
 
         final statusCode = result['statusCode'];
-        if (statusCode == 422 || statusCode == 409) {
-          await store.markFailed(
-            localId,
-            result['message']?.toString() ??
-                'Server menolak data logbook.',
-          );
-        }
 
+        // Authentication, throttling, timeouts, and server errors should
+        // remain pending so the same idempotency key can be retried later.
         if (statusCode == 401 ||
+            statusCode == 408 ||
+            statusCode == 425 ||
+            statusCode == 429 ||
             statusCode == null ||
             (statusCode is int && statusCode >= 500)) {
           break;
+        }
+
+        // Other 4xx responses are permanent for this payload/account/route.
+        // Keep them visible as failed drafts instead of retrying on every app
+        // resume forever.
+        if (statusCode is int && statusCode >= 400 && statusCode < 500) {
+          await store.markFailed(
+            localId,
+            result['message']?.toString() ??
+                'Server menolak data logbook (HTTP $statusCode).',
+          );
         }
       }
     } finally {
@@ -287,7 +296,20 @@ class OfflineLogbookService {
       '${documents.path}/nexora_offline/$userId',
     );
     await directory.create(recursive: true);
-    final target = File('${directory.path}/$localId.jpg');
+    final fileName = source.uri.pathSegments.isEmpty
+        ? ''
+        : source.uri.pathSegments.last;
+    final extension = fileName.contains('.')
+        ? fileName.split('.').last.toLowerCase()
+        : '';
+    const supportedExtensions = {'jpg', 'jpeg', 'png', 'webp'};
+    if (!supportedExtensions.contains(extension)) {
+      throw StateError(
+        'Format foto tidak didukung. Gunakan JPG, JPEG, PNG, atau WEBP.',
+      );
+    }
+
+    final target = File('${directory.path}/$localId.$extension');
     await source.copy(target.path);
     return target.path;
   }
