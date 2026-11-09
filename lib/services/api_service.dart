@@ -18,9 +18,29 @@ class ApiService {
   static Future<void> Function()? onUnauthorized;
   static void Function()? onAuthenticated;
   static bool _unauthorizedHandled = false;
+  static const String _inactiveAccountMessage =
+      'Akun kamu sedang dinonaktifkan. Hubungi Admin.';
 
-  static Future<void> _handleUnauthorized(http.Response response) async {
-    if (response.statusCode != 401 || _unauthorizedHandled) return;
+  static bool _isInactiveAccountResponse(http.Response response) {
+    if (response.statusCode != 403) return false;
+
+    try {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return data['message'] == _inactiveAccountMessage;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> _handleAuthenticationFailure(
+    http.Response response,
+  ) async {
+    final isUnauthorized = response.statusCode == 401;
+    final isInactiveAccount = _isInactiveAccountResponse(response);
+
+    if ((!isUnauthorized && !isInactiveAccount) || _unauthorizedHandled) {
+      return;
+    }
     _unauthorizedHandled = true;
     try {
       await SessionTokenStore.clearSession();
@@ -42,7 +62,7 @@ class ApiService {
     }
 
     final statusCode = result['statusCode'];
-    if (statusCode == 403) {
+    if (statusCode == 403 && result['message'] == _inactiveAccountMessage) {
       await SessionTokenStore.clearSession();
       await onUnauthorized?.call();
     }
@@ -165,7 +185,7 @@ class ApiService {
         }),
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 201) {
         return {
@@ -214,7 +234,7 @@ class ApiService {
         }),
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -253,7 +273,7 @@ class ApiService {
         body: jsonEncode({'password': password}),
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': data['message']};
@@ -283,7 +303,7 @@ class ApiService {
         },
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -316,7 +336,7 @@ class ApiService {
         },
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': data['message']};
@@ -370,7 +390,7 @@ class ApiService {
         }),
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 201) {
         return {
@@ -423,7 +443,7 @@ class ApiService {
         }),
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -457,7 +477,7 @@ class ApiService {
         },
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {'success': true, 'message': data['message']};
@@ -534,7 +554,7 @@ class ApiService {
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 201) {
@@ -588,7 +608,7 @@ class ApiService {
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       if (response.statusCode == 401) {
         return {
           'success': false,
@@ -660,7 +680,7 @@ class ApiService {
         }),
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -713,7 +733,7 @@ class ApiService {
         },
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
         return {
@@ -756,7 +776,7 @@ class ApiService {
         },
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       if (response.statusCode != 200) {
         return {
           'success': false,
@@ -809,7 +829,7 @@ class ApiService {
         },
       );
 
-      await _handleUnauthorized(response);
+      await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
