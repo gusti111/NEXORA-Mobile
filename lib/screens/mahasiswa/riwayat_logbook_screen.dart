@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../services/api_service.dart';
+import '../../services/offline_logbook_service.dart';
 import '../../widgets/secure_logbook_image.dart';
 import 'revisi_logbook_screen.dart';
 import 'detail_logbook_mahasiswa_screen.dart';
@@ -32,19 +32,16 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
     });
 
     try {
-      final result = await ApiService.getStudentLogbooks();
-
-      if (result['success'] != true) {
-        throw Exception(
-          result['message'] ?? 'Gagal mengambil riwayat logbook.',
-        );
-      }
+      final service = OfflineLogbookService.instance;
+      final remoteOrCached = await service.loadStudentLogbooks();
+      final queued = await service.getQueueItems();
 
       if (!mounted) return;
 
       setState(() {
-        logbooks = result['data'] ?? [];
+        logbooks = [...remoteOrCached, ...queued];
         isLoading = false;
+        errorMessage = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -84,6 +81,10 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
         return Colors.orange.shade800;
       case 'rejected':
         return Colors.red;
+      case 'offline_pending':
+        return Colors.blue;
+      case 'sync_failed':
+        return Colors.redAccent;
       default:
         return Colors.grey;
     }
@@ -99,6 +100,10 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
         return 'Perlu Revisi';
       case 'rejected':
         return 'Ditolak';
+      case 'offline_pending':
+        return 'Menunggu Sinkronisasi';
+      case 'sync_failed':
+        return 'Perlu Perbaikan';
       default:
         return status;
     }
@@ -121,6 +126,13 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF176B4D),
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Sinkronkan draft tersimpan',
+            onPressed: _syncPending,
+            icon: const Icon(Icons.cloud_sync_outlined),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: loadLogbooks,
@@ -129,6 +141,24 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
             _buildFilterBar(),
             Expanded(child: _buildBody()),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _syncPending() async {
+    final result =
+        await OfflineLogbookService.instance.syncPendingLogbooks();
+    await loadLogbooks();
+    if (!mounted) return;
+
+    final synced = result['synced'] ?? 0;
+    final pending = result['pending'] ?? 0;
+    final failed = result['failed'] ?? 0;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Tersinkronisasi: $synced · Menunggu: $pending · Perlu perbaikan: $failed',
         ),
       ),
     );
@@ -246,6 +276,18 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () async {
+        if (item['is_local'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                item['status'] == 'sync_failed'
+                    ? 'Draft perlu diperbaiki: ${item['catatan_dosen'] ?? ''}'
+                    : 'Draft ini belum diterima server. Tekan tombol sinkronisasi saat terhubung.',
+              ),
+            ),
+          );
+          return;
+        }
         final changed = await Navigator.push(
           context,
           MaterialPageRoute(
