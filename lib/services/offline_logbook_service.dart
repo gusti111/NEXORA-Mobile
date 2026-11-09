@@ -224,6 +224,29 @@ class OfflineLogbookService {
     return syncPendingLogbooks();
   }
 
+  Future<List<Map<String, dynamic>>> getQueueItems() async {
+    final userId = await currentUserId();
+    if (userId == null) return const [];
+
+    final pending = await store.getPending(userId);
+    final failed = await store.getFailed(userId);
+    return [...pending, ...failed].map((item) {
+      final failedItem = item['status'] == 'failed';
+      return <String, dynamic>{
+        'id': 'local:' + item['local_id'].toString(),
+        'local_id': item['local_id'],
+        'is_local': true,
+        'status': failedItem ? 'sync_failed' : 'offline_pending',
+        'tanggal_kegiatan': item['tanggal_kegiatan'],
+        'judul_kegiatan': item['judul_kegiatan'],
+        'deskripsi_kegiatan': item['deskripsi_kegiatan'],
+        'foto': null,
+        'catatan_dosen': failedItem ? item['last_error'] : null,
+        'created_at': item['created_at'],
+      };
+    }).toList(growable: false);
+  }
+
   Future<Map<String, int>> getQueueSummary() async {
     final userId = await currentUserId();
     if (userId == null) return {'pending': 0, 'failed': 0, 'total': 0};
