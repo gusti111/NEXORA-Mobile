@@ -172,6 +172,8 @@ lib/
 
 test/
 ├── support/
+├── api_service_logbook_test.dart
+├── offline_logbook_service_test.dart
 ├── offline_logbook_store_test.dart
 ├── session_token_store_test.dart
 └── widget_test.dart
