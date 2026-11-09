@@ -134,6 +134,39 @@ class _BuatLogbookScreenState extends State<BuatLogbookScreen> {
       return;
     }
 
+    final selectedPkl = _availablePkls.firstWhere(
+      (item) => int.tryParse(item['id'].toString()) == _selectedPklId,
+    );
+    final startDate = DateTime.tryParse(
+      selectedPkl['tanggal_mulai']?.toString() ?? '',
+    );
+    final finishDate = DateTime.tryParse(
+      selectedPkl['tanggal_selesai']?.toString() ?? '',
+    );
+    final activityDate = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    final today = DateTime.now();
+    final latestAllowedDate = finishDate == null || finishDate.isAfter(today)
+        ? DateTime(today.year, today.month, today.day)
+        : DateTime(finishDate.year, finishDate.month, finishDate.day);
+
+    if (startDate == null ||
+        activityDate.isBefore(DateTime(startDate.year, startDate.month, startDate.day)) ||
+        activityDate.isAfter(latestAllowedDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Tanggal kegiatan harus berada dalam periode PKL dan tidak boleh melewati hari ini.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     final tanggalFormat = DateFormat('yyyy-MM-dd').format(_selectedDate);
