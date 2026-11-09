@@ -64,9 +64,22 @@ Commit the regenerated `pubspec.lock` after adding or changing dependencies so a
 
 ### 2. Start the backend
 
-Follow the setup instructions in [NEXORA Backend](https://github.com/gusti111/NEXORA-Backend). For local Android emulator development, start Laravel so it listens on the host network interface:
+Follow the setup instructions in [NEXORA Backend](https://github.com/gusti111/NEXORA-Backend).
+
+On Windows, the backend repository provides a guarded local-staging bootstrap:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\start-local-staging.ps1
+```
+
+This uses a local SQLite database and dummy student/lecturer/coordinator accounts. It refuses to run unless `APP_ENV=local` and `DB_CONNECTION=sqlite`.
+
+For other operating systems, from the backend repository configure a local SQLite `.env`, run migrations and the local-only demo seeder, then start Laravel:
 
 ```bash
+php artisan migrate
+php artisan db:seed --class="Database\\Seeders\\StagingDemoSeeder"
 php artisan serve --host=0.0.0.0 --port=8000
 ```
 
