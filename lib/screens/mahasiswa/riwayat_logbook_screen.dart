@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
+import '../../widgets/secure_logbook_image.dart';
 import 'revisi_logbook_screen.dart';
 import 'detail_logbook_mahasiswa_screen.dart';
 
@@ -321,20 +322,10 @@ class _RiwayatLogbookScreenState extends State<RiwayatLogbookScreen> {
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  'http://192.168.137.1:8000/storage/$foto',
+                child: SecureLogbookImage(
+                  logbookId: int.parse(item['id'].toString()),
                   height: 160,
                   width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    height: 100,
-                    alignment: Alignment.center,
-                    color: Colors.grey.shade200,
-                    child: const Text(
-                      'Foto tidak dapat dimuat',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ),
                 ),
               ),
             ],

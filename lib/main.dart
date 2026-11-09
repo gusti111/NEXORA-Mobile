@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/api_service.dart';
+import 'services/session_token_store.dart';
 import 'screens/mahasiswa/dashboard_mahasiswa_screen.dart';
 import 'screens/dosen/dashboard_dosen_screen.dart';
 import 'screens/korlap/dashboard_korlap_screen.dart';
@@ -12,6 +13,7 @@ import 'screens/admin/dashboard_admin_screen.dart';
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const NexoraApp());
 }
 
@@ -26,16 +28,21 @@ class _NexoraAppState extends State<NexoraApp> with WidgetsBindingObserver {
   static const Duration sessionTimeout = Duration(minutes: 5);
 
   bool _checkingSession = false;
+  bool _redirectingAfterUnauthorized = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ApiService.onUnauthorized = _handleUnauthorized;
+    ApiService.onAuthenticated = () => _redirectingAfterUnauthorized = false;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    ApiService.onUnauthorized = null;
+    ApiService.onAuthenticated = null;
     super.dispose();
   }
 
@@ -52,14 +59,14 @@ class _NexoraAppState extends State<NexoraApp> with WidgetsBindingObserver {
   }
 
   Future<void> _saveBackgroundTime() async {
-    final prefs = await SharedPreferences.getInstance();
+    final token = await SessionTokenStore.readToken();
+    if (token == null || token.isEmpty) return;
 
-    if (prefs.getString('token') != null) {
-      await prefs.setInt(
-        'background_at',
-        DateTime.now().millisecondsSinceEpoch,
-      );
-    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+      'background_at',
+      DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   Future<void> _checkSessionTimeout() async {
@@ -70,10 +77,15 @@ class _NexoraAppState extends State<NexoraApp> with WidgetsBindingObserver {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      final token = prefs.getString('token');
+      final token = await SessionTokenStore.readToken();
       final backgroundAt = prefs.getInt('background_at');
 
-      if (token == null || token.isEmpty || backgroundAt == null) {
+      if (token == null || token.isEmpty) {
+        return;
+      }
+
+      if (backgroundAt == null) {
+        await ApiService.validateSession();
         return;
       }
 
@@ -122,10 +134,27 @@ class _NexoraAppState extends State<NexoraApp> with WidgetsBindingObserver {
         });
       } else {
         await prefs.remove('background_at');
+        await ApiService.validateSession();
       }
     } finally {
       _checkingSession = false;
     }
+  }
+
+  Future<void> _handleUnauthorized() async {
+    if (!mounted || _redirectingAfterUnauthorized) return;
+    _redirectingAfterUnauthorized = true;
+
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) {
+      _redirectingAfterUnauthorized = false;
+      return;
+    }
+
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -165,7 +194,7 @@ class _AuthGateState extends State<AuthGate> {
   Future<Widget> _checkLogin() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final token = prefs.getString('token');
+    final token = await SessionTokenStore.readToken();
     final userString = prefs.getString('user');
     final backgroundAt = prefs.getInt('background_at');
 
@@ -211,7 +240,20 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     try {
-      final user = jsonDecode(userString) as Map<String, dynamic>;
+      final cachedUser = jsonDecode(userString) as Map<String, dynamic>;
+      final validation = await ApiService.validateSession(
+        notifyUnauthorized: false,
+      );
+
+      if (validation['statusCode'] == 401 || validation['statusCode'] == 403) {
+        return const LoginScreen();
+      }
+
+      // When the device is offline, retain the cached profile and let the
+      // dashboard display its normal connection error state.
+      final user = validation['success'] == true
+          ? Map<String, dynamic>.from(validation['user'] as Map)
+          : cachedUser;
 
       if (user['role'] == 'admin') {
         return DashboardAdminScreen(user: user);

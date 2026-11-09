@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_service.dart';
+import '../../widgets/secure_logbook_image.dart';
 
 class DetailLogbookDosenScreen extends StatefulWidget {
   final Map<String, dynamic> logbook;
@@ -277,21 +278,10 @@ class _DetailLogbookDosenScreenState extends State<DetailLogbookDosenScreen> {
                       const SizedBox(height: 8),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          'http://192.168.137.1:8000/storage/$foto',
+                        child: SecureLogbookImage(
+                          logbookId: int.parse(logbook['id'].toString()),
                           height: 220,
                           width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
-                            height: 120,
-                            alignment: Alignment.center,
-                            color: Colors.grey.shade200,
-                            child: const Text(
-                              'Foto tidak dapat dimuat',
-                              style:
-                                  TextStyle(fontSize: 12, color: Colors.grey),
-                            ),
-                          ),
                         ),
                       ),
                     ],

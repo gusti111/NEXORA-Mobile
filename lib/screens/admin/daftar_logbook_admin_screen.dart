@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_service.dart';
+import '../../widgets/secure_logbook_image.dart';
 
 class DaftarLogbookAdminScreen extends StatefulWidget {
   const DaftarLogbookAdminScreen({super.key});
@@ -266,15 +267,10 @@ class _DaftarLogbookAdminScreenState extends State<DaftarLogbookAdminScreen> {
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                'http://192.168.137.1:8000/storage/$foto',
+              child: SecureLogbookImage(
+                logbookId: int.parse(item['id'].toString()),
                 height: 100,
                 width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Container(
-                  height: 60,
-                  color: Colors.grey.shade200,
-                ),
               ),
             ),
           ],
