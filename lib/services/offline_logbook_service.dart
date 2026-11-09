@@ -250,7 +250,7 @@ class OfflineLogbookService {
     return [...pending, ...failed].map((item) {
       final failedItem = item['status'] == 'failed';
       return <String, dynamic>{
-        'id': 'local:' + item['local_id'].toString(),
+        'id': 'local:${item['local_id']}',
         'local_id': item['local_id'],
         'is_local': true,
         'status': failedItem ? 'sync_failed' : 'offline_pending',
@@ -284,10 +284,10 @@ class OfflineLogbookService {
     final documents =
         _documentsDirectory ?? await getApplicationDocumentsDirectory();
     final directory = Directory(
-      documents.path + '/nexora_offline/' + userId.toString(),
+      '${documents.path}/nexora_offline/$userId',
     );
     await directory.create(recursive: true);
-    final target = File(directory.path + '/' + localId + '.jpg');
+    final target = File('${directory.path}/$localId.jpg');
     await source.copy(target.path);
     return target.path;
   }
