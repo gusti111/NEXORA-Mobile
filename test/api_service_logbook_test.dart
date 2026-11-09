@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:nexora_mobile/services/api_service.dart';
 import 'package:nexora_mobile/services/session_token_store.dart';
@@ -12,6 +13,7 @@ void main() {
   late MemorySecureTokenBackend backend;
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     backend = MemorySecureTokenBackend();
     SessionTokenStore.setBackendForTesting(backend);
     await SessionTokenStore.writeToken('test-session-token');
