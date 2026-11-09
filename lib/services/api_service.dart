@@ -14,6 +14,10 @@ class ApiService {
     defaultValue: 'http://10.0.2.2:8000/api',
   );
 
+  static String logbookPhotoUrl(int logbookId) {
+    return '$baseUrl/logbooks/$logbookId/photo';
+  }
+
   /// Set by the root app to clear navigation when the API rejects a session.
   static Future<void> Function()? onUnauthorized;
   static void Function()? onAuthenticated;
