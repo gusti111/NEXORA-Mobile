@@ -13,6 +13,7 @@ import 'screens/admin/dashboard_admin_screen.dart';
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const NexoraApp());
 }
 
@@ -79,7 +80,12 @@ class _NexoraAppState extends State<NexoraApp> with WidgetsBindingObserver {
       final token = await SessionTokenStore.readToken();
       final backgroundAt = prefs.getInt('background_at');
 
-      if (token == null || token.isEmpty || backgroundAt == null) {
+      if (token == null || token.isEmpty) {
+        return;
+      }
+
+      if (backgroundAt == null) {
+        await ApiService.validateSession();
         return;
       }
 
