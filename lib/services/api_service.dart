@@ -636,7 +636,7 @@ class ApiService {
         );
       }
 
-      final streamedResponse = await request.send();
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 15));
       final response = await http.Response.fromStream(streamedResponse);
       await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
@@ -918,7 +918,7 @@ class ApiService {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      );
+      ).timeout(const Duration(seconds: 8));
 
       await _handleAuthenticationFailure(
         response,
