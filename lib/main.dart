@@ -34,14 +34,14 @@ class _NexoraAppState extends State<NexoraApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     ApiService.onUnauthorized = _handleUnauthorized;
+    ApiService.onAuthenticated = () => _redirectingAfterUnauthorized = false;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    if (ApiService.onUnauthorized == _handleUnauthorized) {
-      ApiService.onUnauthorized = null;
-    }
+    ApiService.onUnauthorized = null;
+    ApiService.onAuthenticated = null;
     super.dispose();
   }
 
