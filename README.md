@@ -134,7 +134,7 @@ The student logbook flow uses a local SQLite outbox:
 2. A selected photo is copied into the app's documents directory so it remains available after the image picker cache is cleared.
 3. Each draft receives a stable UUID. The same UUID is sent as `idempotency_key` every time the draft is retried.
 4. The backend returns the original record on a replay instead of creating a duplicate.
-5. Successful drafts are removed from the outbox and their copied photo is deleted. Network/server failures remain pending; validation conflicts are marked failed and can be removed from the history screen after review.
+5. Successful drafts are removed from the outbox and their copied photo is deleted. Network errors, 401/403 authorization responses, timeouts, throttling, and 5xx responses remain pending for recovery; other permanent 4xx responses are marked failed and can be removed from the history screen after review.
 6. The app shows cached PKL/logbook data when the server cannot be reached.
 
 Synchronization is attempted after login, when the app resumes, and manually from the student logbook history screen. This phase does **not** run a background worker while the application is fully terminated, and it does not use a connectivity signal as proof that the internet is reachable; the API request itself determines whether synchronization succeeds.
