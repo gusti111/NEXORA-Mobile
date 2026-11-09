@@ -241,7 +241,9 @@ class _AuthGateState extends State<AuthGate> {
 
     try {
       final cachedUser = jsonDecode(userString) as Map<String, dynamic>;
-      final validation = await ApiService.validateSession();
+      final validation = await ApiService.validateSession(
+        notifyUnauthorized: false,
+      );
 
       if (validation['statusCode'] == 401 || validation['statusCode'] == 403) {
         return const LoginScreen();
