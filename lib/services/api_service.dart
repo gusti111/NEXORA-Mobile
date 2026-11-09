@@ -5,7 +5,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://127.0.0.1:8000/api';
+  /// Override at build time with --dart-define=API_BASE_URL=<base-url>.
+  /// The default targets the Android Studio emulator host machine.
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000/api',
+  );
 
   // ==========================================
   // AUTH
@@ -54,9 +59,27 @@ class ApiService {
 
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
-    await prefs.remove('user');
-    await prefs.remove('background_at');
+    final token = prefs.getString('token');
+
+    try {
+      if (token != null && token.isNotEmpty) {
+        await http
+            .post(
+              Uri.parse('$baseUrl/logout'),
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+            )
+            .timeout(const Duration(seconds: 5));
+      }
+    } catch (_) {
+      // Local sign-out must still complete when the API is unreachable.
+    } finally {
+      await prefs.remove('token');
+      await prefs.remove('user');
+      await prefs.remove('background_at');
+    }
   }
 
   // ==========================================
