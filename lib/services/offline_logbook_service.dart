@@ -215,6 +215,23 @@ class OfflineLogbookService {
     return summary;
   }
 
+  Future<bool> deleteFailedDraft(String localId) async {
+    final userId = await currentUserId();
+    if (userId == null) return false;
+
+    final item = await store.getPendingById(localId);
+    if (item == null ||
+        item['user_id'] != userId ||
+        item['status'] != 'failed') {
+      return false;
+    }
+
+    final photoPath = item['foto_path']?.toString();
+    await store.deleteFailed(localId, userId);
+    if (photoPath != null) await _deletePhoto(photoPath);
+    return true;
+  }
+
   Future<Map<String, int>> retryFailedLogbooks() async {
     final userId = await currentUserId();
     if (userId == null) {
@@ -240,6 +257,7 @@ class OfflineLogbookService {
         'tanggal_kegiatan': item['tanggal_kegiatan'],
         'judul_kegiatan': item['judul_kegiatan'],
         'deskripsi_kegiatan': item['deskripsi_kegiatan'],
+        'foto_path': item['foto_path'],
         'foto': null,
         'catatan_dosen': failedItem ? item['last_error'] : null,
         'created_at': item['created_at'],
