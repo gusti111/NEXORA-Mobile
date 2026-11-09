@@ -511,8 +511,8 @@ class ApiService {
   static Future<Map<String, dynamic>> getNotifications() async {
     final result = await _getAuthenticated('/notifications');
     if (result['success'] == true) {
-      final count = await getUnreadNotificationCount();
-      result['unread_count'] = count;
+      result['unread_count'] =
+          result['unread_count'] is int ? result['unread_count'] : 0;
     }
     return result;
   }
@@ -931,6 +931,7 @@ class ApiService {
           'success': true,
           'data': data['data'],
           'message': data['message'],
+          'unread_count': data['unread_count'],
           'statusCode': response.statusCode,
         };
       }
