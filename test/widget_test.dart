@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexora_mobile/main.dart';
+import 'package:nexora_mobile/services/session_token_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/memory_secure_token_backend.dart';
-import 'package:nexora_mobile/services/session_token_store.dart';
 
 void main() {
   setUp(() {
