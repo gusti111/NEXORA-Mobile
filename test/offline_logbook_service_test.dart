@@ -7,6 +7,7 @@ import 'package:http/testing.dart' show MockClient;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:nexora_mobile/services/api_service.dart';
 import 'package:nexora_mobile/services/offline_logbook_service.dart';
 import 'package:nexora_mobile/services/offline_logbook_store.dart';
 import 'package:nexora_mobile/services/session_token_store.dart';
@@ -39,6 +40,7 @@ void main() {
   });
 
   tearDown(() async {
+    ApiService.setLogbookClientFactoryForTesting(null);
     await store.close();
     if (await tempDirectory.exists()) {
       await tempDirectory.delete(recursive: true);
@@ -74,10 +76,8 @@ void main() {
       'data': {'id': 123},
     });
 
-    final result = await http.runWithClient(
-      () => submit(),
-      () => client,
-    );
+    ApiService.setLogbookClientFactoryForTesting(() => client);
+    final result = await submit();
 
     expect(result['success'], isTrue);
     expect(result['queued'], isFalse);
@@ -96,10 +96,8 @@ void main() {
       },
     });
 
-    final result = await http.runWithClient(
-      () => submit(),
-      () => client,
-    );
+    ApiService.setLogbookClientFactoryForTesting(() => client);
+    final result = await submit();
 
     expect(result['success'], isFalse);
     expect(result['message'], 'Tanggal kegiatan di luar periode PKL.');
@@ -119,10 +117,8 @@ void main() {
       'message': 'Server sedang tidak tersedia.',
     });
 
-    final result = await http.runWithClient(
-      () => submit(photo: photo),
-      () => client,
-    );
+    ApiService.setLogbookClientFactoryForTesting(() => client);
+    final result = await submit(photo: photo);
 
     expect(result['success'], isTrue);
     expect(result['queued'], isTrue);
