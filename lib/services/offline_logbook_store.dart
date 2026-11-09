@@ -217,6 +217,15 @@ class OfflineLogbookStore {
     );
   }
 
+  Future<void> deleteFailed(String localId, int userId) async {
+    final db = await database;
+    await db.delete(
+      'pending_logbooks',
+      where: 'local_id = ? AND user_id = ? AND status = ?',
+      whereArgs: [localId, userId, 'failed'],
+    );
+  }
+
   Future<void> retryFailed(int userId) async {
     final db = await database;
     await db.update(
