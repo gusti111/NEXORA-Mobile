@@ -16,6 +16,7 @@ class ApiService {
 
   /// Set by the root app to clear navigation when the API rejects a session.
   static Future<void> Function()? onUnauthorized;
+  static void Function()? onAuthenticated;
   static bool _unauthorizedHandled = false;
 
   static Future<void> _handleUnauthorized(http.Response response) async {
@@ -70,6 +71,7 @@ class ApiService {
         await prefs.setString('user', jsonEncode(data['user']));
         await prefs.remove('background_at');
         _unauthorizedHandled = false;
+        onAuthenticated?.call();
         return {
           'success': true,
           'message': data['message'],
@@ -796,7 +798,6 @@ class ApiService {
         },
       );
 
-      await _handleUnauthorized(response);
       await _handleUnauthorized(response);
       final data = jsonDecode(response.body);
 
