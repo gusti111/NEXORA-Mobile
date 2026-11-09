@@ -57,11 +57,9 @@ The mobile application connects to the [NEXORA Backend](https://github.com/gusti
    flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api
    ```
 
-   **iOS simulator or another local target**:
+   **iOS simulator**:
 
-   ```bash
-   flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8000/api
-   ```
+   Use a reachable HTTPS API endpoint with `--dart-define=API_BASE_URL=...`. The current iOS project does not include a local HTTP App Transport Security exception.
 
 The default API URL is `http://10.0.2.2:8000/api`, which routes Android Emulator traffic to the host computer. Use an HTTPS URL for production builds:
 
