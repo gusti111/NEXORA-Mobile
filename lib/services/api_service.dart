@@ -21,6 +21,13 @@ class ApiService {
   /// Set by the root app to clear navigation when the API rejects a session.
   static Future<void> Function()? onUnauthorized;
   static void Function()? onAuthenticated;
+  static http.Client Function() _logbookClientFactory = () => http.Client();
+
+  static void setLogbookClientFactoryForTesting(
+    http.Client Function()? factory,
+  ) {
+    _logbookClientFactory = factory ?? () => http.Client();
+  }
   static bool _unauthorizedHandled = false;
   static const String _inactiveAccountMessage =
       'Akun kamu sedang dinonaktifkan. Hubungi Admin.';
@@ -607,6 +614,7 @@ class ApiService {
     double? latitude,
     double? longitude,
   }) async {
+    final client = _logbookClientFactory();
     try {
       final token = await SessionTokenStore.readToken();
       if (token == null || token.isEmpty) {
@@ -636,7 +644,7 @@ class ApiService {
         );
       }
 
-      final streamedResponse = await request.send().timeout(
+      final streamedResponse = await client.send(request).timeout(
         const Duration(seconds: 15),
       );
       final response = await http.Response.fromStream(streamedResponse).timeout(
@@ -645,7 +653,7 @@ class ApiService {
       await _handleAuthenticationFailure(response);
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
           'message': data['message'],
@@ -668,6 +676,8 @@ class ApiService {
         'statusCode': null,
         'retryable': true,
       };
+    } finally {
+      client.close();
     }
   }
 
