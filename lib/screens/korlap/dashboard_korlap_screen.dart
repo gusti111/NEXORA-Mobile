@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api_service.dart';
 import '../../main.dart';
+import '../notification_center_screen.dart';
 import 'detail_logbook_korlap_screen.dart';
 import 'daftar_mahasiswa_korlap_screen.dart';
 
@@ -220,6 +221,18 @@ class _DashboardKorlapScreenState extends State<DashboardKorlapScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
+          IconButton(
+            tooltip: 'Notifikasi',
+            icon: const Icon(Icons.notifications_none),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const NotificationCenterScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             onPressed: _logout,
             icon: const Icon(Icons.logout, color: Colors.red),
