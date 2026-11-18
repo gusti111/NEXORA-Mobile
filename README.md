@@ -38,6 +38,24 @@ NEXORA Mobile is the Flutter client for a role-based PKL (Praktik Kerja Lapangan
                    ▼
             NEXORA Laravel API
 
+## Mobile submission and synchronization flow
+
+```mermaid
+flowchart TD
+    A["User signs in"] --> B["Validate session with NEXORA API"]
+    B --> C["Open role-specific dashboard"]
+    C --> D["Student creates logbook draft"]
+    D --> E["Store draft and evidence in local outbox"]
+    E --> F{"API reachable?"}
+    F -->|No| G["Keep draft pending locally"]
+    G --> F
+    F -->|Yes| H["Submit with stable idempotency key"]
+    H --> I{"Backend accepts request?"}
+    I -->|Retryable error| G
+    I -->|Accepted or replayed| J["Remove synced draft and local evidence"]
+    J --> K["Refresh logbook history and status"]
+```
+
 ## Technology
 
 - Flutter and Dart (SDK constraint: ^3.11.4).
